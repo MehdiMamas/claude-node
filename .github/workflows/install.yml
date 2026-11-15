@@ -49,7 +49,9 @@ jobs:
       - name: Boot a fresh Ubuntu with the user-data
         run: |
           lxc launch ubuntu:24.04 n1 --config=user.user-data="$(cat tests/user-data-ci.yaml)"
-          lxc file push -r --create-dirs . n1/opt/claude-node
+          # `lxc file push -r .` nests the directory by name, so stream a tar instead
+          lxc exec n1 -- mkdir -p /opt/claude-node
+          tar -c --exclude=.git . | lxc exec n1 -- tar -x -C /opt/claude-node
           lxc exec n1 -- touch /opt/claude-node/.pushed
       - name: Wait for cloud-init
         run: |
