@@ -26,7 +26,7 @@ Start together:
 
 After the installer is merged, together:
 - [First node on Oracle Always Free](../../issues/4) (also waits for Oracle capacity)
-- [Raspberry Pi 4/5](../../issues/6)
+- [Raspberry Pi 4/5](../../issues/6), guide: [docs/raspberry-pi.md](docs/raspberry-pi.md)
 - [USB autoinstall for spare PCs](../../issues/5)
 
 ## Contributing
