@@ -1,0 +1,30 @@
+name: runner
+on:
+  push:
+    branches: [main]
+    paths: ['node/runner.sh', '.github/workflows/runner.yml']
+  pull_request:
+    paths: ['node/runner.sh', '.github/workflows/runner.yml']
+permissions:
+  contents: read
+jobs:
+  runner-script:
+    runs-on: ubuntu-24.04 # GitHub-hosted on purpose: never a self-hosted runner for this public repo
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: shellcheck
+        run: shellcheck node/runner.sh
+      - name: Empty join code exits 0
+        run: echo | sudo node/runner.sh --force
+      - name: Nothing from gh-runners was installed
+        run: |
+          id ghrunner
+          home=/home/ghrunner
+          # state dir is ~/.gh-runners, the unit is gh-runners.service (gh-runners internal/store, internal/service)
+          sudo test ! -e "$home/.gh-runners"
+          sudo test ! -e "$home/.config/systemd/user/gh-runners.service"
+          sudo test ! -e "$home/.local/bin/gh-runners"
+          ! sudo crontab -u ghrunner -l 2>/dev/null | grep -q gh-runners
+      - name: Refuses without root
+        run: |
+          if node/runner.sh --force; then echo "should have refused"; exit 1; fi
