@@ -1,0 +1,9 @@
+#cloud-config
+# Keeps the image's default admin user and adds your key. No secrets here.
+ssh_authorized_keys:
+  - ssh-ed25519 REPLACE-WITH-YOUR-PUBLIC-KEY
+packages:
+  - git
+runcmd:
+  - git clone --depth 1 https://github.com/MehdiMamas/claude-node /opt/claude-node
+  - /opt/claude-node/node/install.sh

@@ -1,0 +1,61 @@
+name: install
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: sudo apt-get -o DPkg::Lock::Timeout=600 install -y shellcheck cloud-init
+      - run: shellcheck node/*.sh
+      - run: cloud-init schema -c cloud-init/user-data.yaml
+      - run: cloud-init schema -c tests/user-data-ci.yaml
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Add the stub unit (stands in for lane A)
+        run: |
+          mkdir -p node/systemd
+          cp tests/fixtures/claude-remote-control.service node/systemd/
+      - run: sudo node/install.sh
+      - name: Run again (idempotent)
+        run: sudo node/install.sh
+      - name: Checks
+        run: |
+          set -x
+          sudo -u claude /home/claude/.local/bin/claude --version
+          id claude
+          id ghrunner
+          ! id -nG claude | grep -qw sudo
+          test -f /var/lib/systemd/linger/claude
+          test "$(sudo systemctl --user -M claude@ is-enabled claude-remote-control)" = enabled
+          sudo sshd -T | grep -x 'passwordauthentication no'
+  boot:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: canonical/setup-lxd@25c036d6aa7fd68c4d980887ad2c0fb122234cd0
+      - name: Let LXD bridge traffic through the runner's Docker rules
+        run: sudo iptables -I DOCKER-USER -j ACCEPT
+      - name: Boot a fresh Ubuntu with the user-data
+        run: |
+          lxc launch ubuntu:24.04 n1 --config=user.user-data="$(cat tests/user-data-ci.yaml)"
+          lxc file push -r --create-dirs . n1/opt/claude-node
+          lxc exec n1 -- touch /opt/claude-node/.pushed
+      - name: Wait for cloud-init
+        run: |
+          lxc exec n1 -- cloud-init status --wait --long || true
+          lxc exec n1 -- cloud-init status | tee /dev/stderr | grep -x 'status: done'
+      - name: Claude Code works as claude
+        run: lxc exec n1 -- sudo -u claude /home/claude/.local/bin/claude --version
+      - if: failure()
+        run: lxc exec n1 -- tail -n 100 /var/log/cloud-init-output.log
