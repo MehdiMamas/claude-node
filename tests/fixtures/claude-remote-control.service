@@ -1,0 +1,8 @@
+[Unit]
+Description=Claude Code remote control (test stub)
+
+[Service]
+ExecStart=/bin/true
+
+[Install]
+WantedBy=default.target
