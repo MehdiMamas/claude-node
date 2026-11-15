@@ -8,6 +8,10 @@ Type=simple
 WorkingDirectory=%h/rc
 ExecStart=%h/.local/bin/claude remote-control --spawn same-dir --permission-mode bypassPermissions
 Restart=always
+# The status screen redraws about once a second with no terminal; keep it
+# out of the journal and log only errors.
+StandardOutput=null
+StandardError=journal
 RestartSec=10
 RestartSteps=6
 RestartMaxDelaySec=120

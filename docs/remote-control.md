@@ -5,7 +5,7 @@
 ## What it does
 
 - Starts at boot with nobody logged in (user lingering for the `claude` user) and runs in `~/rc`.
-- Restarts by itself whenever the process exits. Remote Control gives up after about 10 minutes without a network and exits; the unit restarts it with a growing delay (10 s up to 120 s) and never stops trying.
+- Restarts by itself whenever the process exits. Remote Control gives up after about 10 minutes without a network and exits; the unit restarts it with a growing delay (10 s up to 120 s) and never stops trying. Once the network is back it is connected again within the next restart, so at most about 2 minutes later (46 s in a test with a 14-minute cut).
 - After a network drop of up to about 4 h the same sessions come back. After a longer one it comes back with a new session.
 - Sets no `CLAUDE_CODE_OAUTH_TOKEN` and no API key. Remote Control needs a full claude.ai login (Pro, Max, Team or Enterprise); tokens from `claude setup-token` and API keys cannot start it.
 
@@ -34,7 +34,9 @@ systemctl --user status claude-remote-control
 journalctl --user -u claude-remote-control -f
 ```
 
-From another user: `sudo systemctl --user -M claude@ status claude-remote-control`. The journal shows the session URL once it is up.
+From another user: `sudo systemctl --user -M claude@ status claude-remote-control`.
+
+With no terminal, Remote Control redraws its status screen about once a second (several lines each time). The unit sends that screen to `/dev/null` (`StandardOutput=null`) so it does not fill the journal; errors still go to the journal. To find the node, open claude.ai/code or the Claude app: it is listed under the node's host name. To see the status screen itself, stop the unit and run the command from step 2 of the first run by hand.
 
 ## bypassPermissions
 
