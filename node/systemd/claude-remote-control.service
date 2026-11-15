@@ -1,0 +1,20 @@
+[Unit]
+Description=Claude Code Remote Control (claude-node)
+Documentation=https://github.com/MehdiMamas/claude-node
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=%h/rc
+ExecStart=%h/.local/bin/claude remote-control --spawn same-dir --permission-mode bypassPermissions
+Restart=always
+RestartSec=10
+RestartSteps=6
+RestartMaxDelaySec=120
+KillMode=mixed
+TimeoutStopSec=30
+MemoryHigh=60%
+MemoryMax=75%
+
+[Install]
+WantedBy=default.target
