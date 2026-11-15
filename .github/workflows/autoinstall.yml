@@ -70,7 +70,7 @@ jobs:
           ssh_node 'sudo -u claude /home/claude/.local/bin/claude --version'
       - name: Logs
         if: failure()
-        run: ssh -i test_key -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes admin@127.0.0.1 'sudo tail -n 100 /var/log/cloud-init-output.log' || true
+        run: ssh -i test_key -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes admin@127.0.0.1 'ls -la /etc/cloud /var/lib/cloud /var/lib/cloud/seed/* /opt/claude-node | head -80; sudo tail -n 100 /var/log/cloud-init-output.log; sudo cat /etc/cloud/cloud-init.disabled' || true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
