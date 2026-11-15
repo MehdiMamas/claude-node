@@ -47,7 +47,15 @@ The password is plain text on the card; do not share the card.
 
 1. Insert the card, power on, wait a few minutes.
 2. Find the Pi: your router's client list, or `ping <hostname>.local`.
-3. `ssh <user>@<ip>`. The default user is `ubuntu` on Ubuntu. On Raspberry Pi OS it is whatever the user-data or Imager set. Replacing `user-data` drops Imager's user, so on Pi OS add a `users:` block yourself if no default user exists on your image.
+3. `ssh <user>@<ip>`. The default user is `ubuntu` on Ubuntu. Raspberry Pi OS has no default user, and replacing `user-data` drops the one Imager wrote, so on Pi OS add this block to `user-data` before you boot (your key in place of the placeholder), then log in as `admin`:
+   ```yaml
+   users:
+     - name: admin
+       shell: /bin/bash
+       lock_passwd: true
+       sudo: "ALL=(ALL) NOPASSWD:ALL"
+       ssh_authorized_keys: [ssh-ed25519 REPLACE-WITH-YOUR-PUBLIC-KEY]
+   ```
 4. `cloud-init status --wait` until it prints `status: done`.
 5. Follow the one-time sign-ins in [add-a-node.md](add-a-node.md#2-one-time-sign-ins-need-your-hands).
 
