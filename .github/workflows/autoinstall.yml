@@ -1,8 +1,11 @@
 name: autoinstall
 # Boots the stock Ubuntu Server ISO in QEMU with autoinstall/user-data and checks
-# the installed machine. Manual only: it downloads a ~3 GB ISO.
+# the installed machine. Manual, or on PRs that touch these files (~3 GB ISO).
 on:
   workflow_dispatch:
+  # Only when these files change (the ISO download is large).
+  pull_request:
+    paths: [autoinstall/**, .github/workflows/autoinstall.yml]
 permissions:
   contents: read
 jobs:
