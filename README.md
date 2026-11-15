@@ -13,16 +13,21 @@ A laptop sleeps, a phone is not a build machine, and a spare computer or free cl
 - Claude Code installed, with Remote Control kept alive by a systemd service that comes back by itself after a network drop.
 - A self-hosted GitHub Actions runner for private repos.
 - Tailscale for access, key-only SSH, no public ports.
-- Memory limits (systemd slices) so several sessions can share one small machine.
+- Memory limits on the systemd units so several sessions can share one small machine.
 
 ## Roadmap
 
-1. [cloud-init base for Ubuntu Server LTS](../../issues/1) (arm64 and x86_64)
-2. [Remote Control kept alive](../../issues/2)
-3. [Self-hosted CI runner](../../issues/3)
-4. [First node on Oracle Always Free](../../issues/4)
-5. [USB autoinstall for spare PCs](../../issues/5)
-6. [Raspberry Pi 4/5 support](../../issues/6)
+Work runs in parallel lanes; a step waits only for what it needs.
+
+Start together:
+- [Remote Control kept alive](../../issues/2) (systemd user unit)
+- [Installer + cloud-init for Ubuntu Server LTS](../../issues/1) (arm64 and x86_64)
+- [Self-hosted CI runner](../../issues/3) (private repos only)
+
+After the installer is merged, together:
+- [First node on Oracle Always Free](../../issues/4) (also waits for Oracle capacity)
+- [Raspberry Pi 4/5](../../issues/6)
+- [USB autoinstall for spare PCs](../../issues/5)
 
 ## Contributing
 
