@@ -65,8 +65,15 @@ jobs:
       - name: Checks over SSH
         run: |
           ssh_node() { ssh -i test_key -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes admin@127.0.0.1 "$@"; }
-          ssh_node 'cloud-init status --wait --long' || true
-          ssh_node 'cloud-init status' | tee /dev/stderr | grep -x 'status: done'
+          # The installer drops /etc/cloud/cloud-init.disabled on first boot, so
+          # `cloud-init status` reads "disabled" from then on. First boot is done
+          # when cloud-init writes boot-finished; result.json then holds the errors.
+          for i in $(seq 1 120); do
+            ssh_node 'sudo test -f /var/lib/cloud/instance/boot-finished' && break
+            sleep 10
+          done
+          ssh_node 'sudo test -f /var/lib/cloud/instance/boot-finished'
+          ssh_node 'sudo cat /var/lib/cloud/data/result.json' | tee /dev/stderr | grep -q '"errors": \[\]'
           ssh_node 'sudo -u claude /home/claude/.local/bin/claude --version'
       - name: Logs
         if: failure()
