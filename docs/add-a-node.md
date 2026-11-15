@@ -18,6 +18,7 @@ Running the installer again is safe.
 
 1. `sudo tailscale up`, open the printed URL, approve the node.
 2. From your own machine run `ssh <admin>@<node-name>` over Tailscale. Only when that works, run `sudo /opt/claude-node/node/install.sh --close-public-ssh`. Public SSH closes. (The script refuses if Tailscale is not running. If you ever lock yourself out of a cloud VM, use the provider's serial console; on Oracle Cloud that is the OCI serial console connection.)
+   Later runs of `install.sh` keep it closed (marker `/etc/claude-node/public-ssh-closed`; delete it and re-run to open 22 again).
 3. `sudo -iu claude`, then `claude auth login` (open the URL, paste the code). Then `cd ~/rc && claude remote-control --spawn same-dir --permission-mode bypassPermissions`, answer every prompt with y, press Ctrl+C. Then `exit`, then `sudo systemctl --user -M claude@ start claude-remote-control`.
 
 ## What you see when it worked

@@ -83,10 +83,17 @@ else
   ufw default deny incoming
   ufw default allow outgoing
   ufw allow in on tailscale0
-  ufw allow 22/tcp
-  if [ "$CLOSE_SSH" -eq 1 ]; then
+  # Once closed, public SSH stays closed on later runs (marker file).
+  SSH_CLOSED=/etc/claude-node/public-ssh-closed
+  if [ -f "$SSH_CLOSED" ]; then
+    echo "public SSH stays closed ($SSH_CLOSED)"
+  else
+    ufw allow 22/tcp
+  fi
+  if [ "$CLOSE_SSH" -eq 1 ] && [ ! -f "$SSH_CLOSED" ]; then
     if tailscale status --json | jq -e '.BackendState=="Running"' >/dev/null; then
       ufw delete allow 22/tcp
+      install -D -m 0644 /dev/null "$SSH_CLOSED"
       echo "public SSH closed"
     else
       echo "not closing public SSH: Tailscale is not running" >&2
