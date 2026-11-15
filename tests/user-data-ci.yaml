@@ -1,0 +1,14 @@
+#cloud-config
+# CI copy of cloud-init/user-data.yaml: no clone; CI pushes the checkout, then creates .pushed.
+ssh_authorized_keys:
+  - ssh-ed25519 REPLACE-WITH-YOUR-PUBLIC-KEY
+packages:
+  - git
+runcmd:
+  - |
+    for i in $(seq 1 300); do
+      [ -e /opt/claude-node/.pushed ] && break
+      sleep 2
+    done
+    [ -e /opt/claude-node/.pushed ] || { echo "checkout never arrived" >&2; exit 1; }
+  - /opt/claude-node/node/install.sh

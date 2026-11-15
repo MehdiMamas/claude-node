@@ -1,0 +1,87 @@
+name: autoinstall
+# Boots the stock Ubuntu Server ISO in QEMU with autoinstall/user-data and checks
+# the installed machine. Manual, or on PRs that touch these files (~3 GB ISO).
+on:
+  workflow_dispatch:
+  # Only when these files change (the ISO download is large).
+  pull_request:
+    paths: [autoinstall/**, .github/workflows/autoinstall.yml]
+permissions:
+  contents: read
+jobs:
+  vm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Enable KVM and install tools
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo apt-get -o DPkg::Lock::Timeout=600 update
+          sudo apt-get -o DPkg::Lock::Timeout=600 install -y qemu-system-x86 qemu-utils cloud-image-utils xorriso
+      - name: Download the live-server ISO and verify it
+        run: |
+          base=https://releases.ubuntu.com/24.04
+          curl -fsSL "$base/SHA256SUMS" -o SHA256SUMS
+          iso=$(grep -o 'ubuntu-24\.04\.[0-9]*-live-server-amd64\.iso' SHA256SUMS | sort -uV | tail -n1)
+          echo "ISO: $iso"
+          curl -fL --retry 3 -o "$iso" "$base/$iso"
+          grep " \*$iso" SHA256SUMS | sha256sum -c -
+          echo "ISO=$iso" >> "$GITHUB_ENV"
+      - name: Build the test seed (throwaway key)
+        run: |
+          ssh-keygen -q -t ed25519 -N '' -f test_key
+          sed "s|ssh-ed25519 REPLACE-WITH-YOUR-PUBLIC-KEY|$(cut -d' ' -f1,2 test_key.pub)|" autoinstall/user-data > user-data
+          ! grep -q REPLACE-WITH user-data
+          cp autoinstall/meta-data meta-data
+          cloud-localds seed.img user-data meta-data
+      - name: Extract kernel and initrd
+        run: |
+          xorriso -osirrox on -indev "$ISO" -extract /casper/vmlinuz vmlinuz -extract /casper/initrd initrd
+          ls -l vmlinuz initrd
+      - name: Install in QEMU
+        run: |
+          qemu-img create -f qcow2 disk.qcow2 20G
+          # `autoinstall` on the kernel line skips the wipe question (test only).
+          # -no-reboot makes QEMU exit when the installer reboots.
+          timeout 40m qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 2 -nographic -no-reboot \
+            -kernel vmlinuz -initrd initrd -append 'autoinstall console=ttyS0' \
+            -drive file="$ISO",media=cdrom,readonly=on \
+            -drive file=seed.img,format=raw,if=virtio \
+            -drive file=disk.qcow2,format=qcow2,if=virtio \
+            -nic user | tee install-serial.log
+      - name: Boot the installed disk
+        run: |
+          nohup qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 2 -nographic \
+            -drive file=disk.qcow2,format=qcow2,if=virtio \
+            -nic user,hostfwd=tcp::2222-:22 > boot-serial.log 2>&1 &
+          for i in $(seq 1 120); do
+            if ssh -i test_key -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=yes admin@127.0.0.1 true 2>/dev/null; then echo "ssh up"; exit 0; fi
+            sleep 10
+          done
+          echo "ssh never came up"; exit 1
+      - name: Checks over SSH
+        run: |
+          ssh_node() { ssh -i test_key -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes admin@127.0.0.1 "$@"; }
+          # The installer drops /etc/cloud/cloud-init.disabled on first boot, so
+          # `cloud-init status` reads "disabled" from then on. First boot is done
+          # when cloud-init writes boot-finished; result.json then holds the errors.
+          for i in $(seq 1 120); do
+            ssh_node 'sudo test -f /var/lib/cloud/instance/boot-finished' && break
+            sleep 10
+          done
+          ssh_node 'sudo test -f /var/lib/cloud/instance/boot-finished'
+          ssh_node 'sudo cat /var/lib/cloud/data/result.json' | tee /dev/stderr | grep -q '"errors": \[\]'
+          ssh_node 'sudo -u claude /home/claude/.local/bin/claude --version'
+      - name: Logs
+        if: failure()
+        run: ssh -i test_key -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes admin@127.0.0.1 'ls -la /etc/cloud /var/lib/cloud /var/lib/cloud/seed/* /opt/claude-node | head -80; sudo tail -n 100 /var/log/cloud-init-output.log; sudo cat /etc/cloud/cloud-init.disabled' || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: serial-logs
+          path: |
+            install-serial.log
+            boot-serial.log

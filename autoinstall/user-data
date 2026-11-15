@@ -1,0 +1,24 @@
+#cloud-config
+# Ubuntu autoinstall for a spare PC. No secrets here.
+autoinstall:
+  version: 1
+  storage:
+    layout:
+      name: lvm
+  ssh:
+    install-server: true
+    allow-pw: false
+  # No `identity`: the admin user is created from user-data below.
+  user-data:
+    users:
+      - name: admin
+        shell: /bin/bash
+        lock_passwd: true
+        sudo: "ALL=(ALL) NOPASSWD:ALL"
+        ssh_authorized_keys:
+          - ssh-ed25519 REPLACE-WITH-YOUR-PUBLIC-KEY
+    packages:
+      - git
+    runcmd:
+      - git clone --depth 1 https://github.com/MehdiMamas/claude-node /opt/claude-node
+      - /opt/claude-node/node/install.sh
