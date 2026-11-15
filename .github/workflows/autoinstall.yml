@@ -46,7 +46,7 @@ jobs:
           qemu-img create -f qcow2 disk.qcow2 20G
           # `autoinstall` on the kernel line skips the wipe question (test only).
           # -no-reboot makes QEMU exit when the installer reboots.
-          timeout 40m qemu-system-x86_64 -enable-kvm -m 4096 -smp 2 -nographic -no-reboot \
+          timeout 40m qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 2 -nographic -no-reboot \
             -kernel vmlinuz -initrd initrd -append 'autoinstall console=ttyS0' \
             -drive file="$ISO",media=cdrom,readonly=on \
             -drive file=seed.img,format=raw,if=virtio \
@@ -54,7 +54,7 @@ jobs:
             -nic user | tee install-serial.log
       - name: Boot the installed disk
         run: |
-          nohup qemu-system-x86_64 -enable-kvm -m 4096 -smp 2 -nographic \
+          nohup qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 2 -nographic \
             -drive file=disk.qcow2,format=qcow2,if=virtio \
             -nic user,hostfwd=tcp::2222-:22 > boot-serial.log 2>&1 &
           for i in $(seq 1 120); do
